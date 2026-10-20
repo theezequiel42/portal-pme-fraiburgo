@@ -86,6 +86,14 @@ export const fixture = {
     strategy: "entry.4",
   },
 };
+test("adaptador só habilita coleta com enabled booleano true", () => {
+  assert.equal(validateConfig(fixture), true);
+  for (const enabled of ["false", "true", 1, {}, [], false, null, undefined]) {
+    const config = { ...fixture, enabled };
+    assert.equal(validateConfig(config), false, `enabled: ${String(enabled)}`);
+    assert.throws(() => formUrl(config, {}), /indisponível/);
+  }
+});
 test("adaptador exige aprovação e prefill, restringe URL e codifica literalmente", () => {
   assert.equal(validateConfig(demoConfig), false);
   assert.throws(() => formUrl(demoConfig, {}));

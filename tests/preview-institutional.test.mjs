@@ -33,6 +33,11 @@ test("preview institucional isolado: raiz fixa, allowlist, métodos e headers", 
     assert.equal(typeof preview.createHandler, "function");
     for (const mode of ["/tmp", "../", "dist", {}, null, "institutional/build"])
       assert.throws(() => preview.createHandler(mode), /modo/i);
+    for (const mode of ["demo", "institutional"]) {
+      const res = await request(preview.createHandler(mode), "//[");
+      assert.equal(res.status, 404, `${mode}: malformed target`);
+      assert.equal(res.body, undefined);
+    }
     const institutional = preview.createHandler("institutional");
     // Fresh clone: neither real configuration nor build is required.
     assert.equal((await request(institutional, "/")).status, 404);

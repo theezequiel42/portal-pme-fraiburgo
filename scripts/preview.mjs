@@ -29,14 +29,14 @@ export function createHandler(mode = "demo") {
     import.meta.url,
   );
   return async function handler(req, res) {
-    const path = new URL(req.url, "http://localhost").pathname;
-    const file = files.get(path);
-    if (!file || !["GET", "HEAD"].includes(req.method)) {
-      res.writeHead(404);
-      res.end();
-      return;
-    }
     try {
+      const path = new URL(req.url, "http://localhost").pathname;
+      const file = files.get(path);
+      if (!file || !["GET", "HEAD"].includes(req.method)) {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
       const data = await readFile(new URL(file, root));
       res.writeHead(200, {
         "Content-Type": types[file.split(".").pop()],

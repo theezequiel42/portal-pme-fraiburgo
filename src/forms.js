@@ -1,6 +1,6 @@
 export const demoConfig = Object.freeze({ enabled: false });
 export function validateConfig(config) {
-  if (!config?.enabled) return false;
+  if (config?.enabled !== true) return false;
   if (config.approved !== true || config.prefillVerified !== true) return false;
   try {
     const url = new URL(config.responderUri);
