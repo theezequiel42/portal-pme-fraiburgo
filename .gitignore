@@ -1,0 +1,14 @@
+node_modules/
+dist/
+institutional/
+test-results/
+playwright-report/
+
+# Local credentials and private runtime configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials/
+.cache/
