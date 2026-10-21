@@ -1,0 +1,11 @@
+institutional/
+.git/
+.env*
+credentials/
+node_modules/
+dist/
+test-results/
+playwright-report/
+.cache/
+*.pem
+*.key
