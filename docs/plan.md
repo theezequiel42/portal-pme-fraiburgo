@@ -1,5 +1,13 @@
 # Plano
 
+## Ideia registrada para próxima evolução — ainda não implementar
+
+O usuário deseja retomar em breve a alternativa de formulário próprio em React com backend e armazenamento no Google Sheets, priorizando um fluxo mais simples. Os campos da contribuição passariam a integrar a interface do portal; o backend validaria os dados e gravaria na planilha pela API do Sheets, mantendo credenciais exclusivamente no servidor. Essa gravação não constitui resposta no Google Forms.
+
+Este registro não autoriza implementação, substituição do iframe, criação de planilha, alteração de recursos Google ou publicação. A arquitetura atual com Forms nativo incorporado permanece vigente até aprovação explícita da mudança. Na retomada, definir backend, acesso institucional, validação do contexto, confirmação de gravação, proteção contra abuso/duplicidade e tratamento de rascunhos antes de implementar.
+
+## Implementação atual
+
 Implementar React com prerender integral do catálogo e hidratação consistente. Separar leitura progressiva e contexto estável do Forms. Demo fechado; integração institucional depende de aprovação e prefill nativo verificado.
 
 Validar transcrição das 464 linhas, grupos, adaptador, fluxo e HTML produzido. Executar build e navegador desktop/mobile, sem JS e falha de módulo quando disponível. Preview exclusivamente dist em loopback; registrar limites reais.
