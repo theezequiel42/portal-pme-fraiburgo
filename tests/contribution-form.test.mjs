@@ -31,4 +31,7 @@ test("formulário próprio: proposta obrigatória, opcionais e nenhum iframe", a
   assert.match(html, /Justificativa \(opcional\)/);
   assert.doesNotMatch(html, /<iframe|docs.google.com/);
   assert.match(html, /Enviar contribuição/);
+  assert.ok(html.indexOf('id="proposal"') < html.indexOf('id="problem"'));
+  assert.match(html, /aria-describedby="proposal-help proposal-limit"/);
+  assert.match(html, /Como seu envio é tratado/);
 });

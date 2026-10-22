@@ -83,3 +83,15 @@ Combobox com useId estável no SSR, aria-expanded/controls/autocomplete=list/act
 Texto livre, limpeza da consulta, destaque e blur nunca alteram estratégia, leitura escolhida ou assunto da contribuição. Grupo/objetivo limpam consulta/abertura/destaque/seleção dependentes, com Geral padrão, sem descartar o rascunho. Componente remonta por grupo/objetivo; o formulário de contribuição continua vinculado ao contexto confirmado. Não persistir query em URL, storage ou analytics.
 
 Introdução curta e aviso compacto com “Coleta ainda não aberta” explícito, aproximando seletor em 320/375px sem ocultar aviso nem mudar logo, paleta ou cabeçalho sem legenda.
+
+## Aprimoramento visual — participação guiada
+
+Direção aprovada: superfície Configure, sem wizard fechado. Três momentos permanecem na página: “Escolha o assunto”, “Consulte o conteúdo” e “Escreva sua contribuição”. Desktop usa seleção lateral e leitura na coluna principal, seguida da contribuição. Até 800px, a composição vira uma coluna; até 480px, os próprios títulos orientam o fluxo e o indicador redundante de etapas é ocultado. Sem cabeçalho fixo nem rolagem independente dos painéis; apenas a lista de estratégias mantém seu limite de altura acessível.
+
+Seleção tem fundo rosado discreto; leitura usa hierarquia editorial e separadores, sem faixa lateral decorativa. Objetivo, metas e estratégias conservam textos literais. Estado inicial orienta a escolher grupo e objetivo. Resumos em lista de definições identificam grupo, objetivo, modalidade e estratégia, quando aplicável; conteúdo em consulta não se confunde com assunto vinculado ao formulário.
+
+Proposta obrigatória aparece primeiro, com maior destaque e orientação associada por aria-describedby; problema e justificativa continuam opcionais, com suas próprias orientações. Contadores mostram uso e limite de caracteres. Aviso sobre rascunho e dados sensíveis permanece visível; detalhes de armazenamento e confirmação ficam em “Como seu envio é tratado”. Não há nova persistência, dependência externa ou mudança de contrato do backend.
+
+SSR continua fechado. Após hidratar, distinguir verificação em andamento, coleta aberta, coleta fechada e falha de verificação (HTTP, rede ou resposta inválida). Somente enabled booleano true libera preparação. Falhas não equivalem a fechamento institucional confirmado. Erro e sucesso de envio têm tratamentos visuais distintos, preservando a lógica de reenvio e recibo.
+
+Validação local: testes de componentes e formulário; navegador em 1280, 375 e 320px com API interceptada, preservação do rascunho, cancelamento/Escape, troca confirmada, falha/reenvio/recibo, seleção por teclado/toque, fallback sem JS e falha de módulo; build e catálogo integral. Capturas de leitura e formulário revisadas em desktop e celular. Auditoria visual: 0/10 sinais de decoração genérica após ajustes; fonte do sistema mantida deliberadamente conforme especificação. Nenhum envio Google real ou deploy integra este aprimoramento.

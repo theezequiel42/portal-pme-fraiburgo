@@ -18,4 +18,9 @@ test("árvore inicial consistente: nenhum grupo, etapas dependentes ausentes e f
   assert.match(html, /<details class="catalog"/);
   assert.match(html, /fluxo interativo precisa de JavaScript/);
   assert.equal((html.match(/data-legal=/g) || []).length, 464);
+  assert.match(html, /aria-label="Etapas da participação"/);
+  assert.match(html, /1\. Escolha o assunto/);
+  assert.match(html, /2\. Consulte o conteúdo/);
+  assert.match(html, /3\. Escreva sua contribuição/);
+  assert.match(html, /Escolha um grupo de trabalho e um objetivo para consultar/);
 });

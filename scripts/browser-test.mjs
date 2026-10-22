@@ -165,6 +165,30 @@ try {
 }
 const browser = await chromium.launch();
 try {
+  for (const scenario of ["closed", "open", "failure", "invalid", "network"]) {
+    const page = await browser.newPage();
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    await page.route("**/api/collection", async (route) => {
+      await gate;
+      if (scenario === "network") return route.abort();
+      return route.fulfill({
+        status: scenario === "failure" ? 503 : 200,
+        json: scenario === "invalid" ? {} : { enabled: scenario === "open" },
+      });
+    });
+    await page.goto("http://127.0.0.1:4173");
+    await page.locator("#group:enabled").waitFor();
+    assert.match(await page.locator(".notice").innerText(), /Verificando disponibilidade/);
+    await page.locator("#group").selectOption("6");
+    await page.locator("#objective").selectOption("7");
+    assert.equal(await page.getByRole("button", { name: "Preparar contribuição", exact: true }).isDisabled(), true);
+    release();
+    const expected = scenario === "open" ? /Coleta aberta/ : scenario === "closed" ? /Coleta ainda não aberta/ : /Não foi possível verificar/;
+    await page.waitForFunction((pattern) => new RegExp(pattern).test(document.querySelector(".notice").textContent), expected.source);
+    assert.equal(await page.getByRole("button", { name: "Preparar contribuição", exact: true }).isDisabled(), scenario !== "open");
+    await page.close();
+  }
   for (const width of [1280, 375, 320]) {
     const page = await browser.newPage({
       viewport: { width, height: 900 },
@@ -174,6 +198,8 @@ try {
     page.on("pageerror", (e) => errors.push(String(e)));
     await page.route("**/*", async (route) => {
       const u = new URL(route.request().url());
+      if (u.pathname === "/api/collection")
+        return route.fulfill({ json: { enabled: false } });
       if (u.origin === "http://127.0.0.1:4173") return route.continue();
       throw new Error("Rede externa inesperada no demo: " + u.origin);
     });
@@ -214,8 +240,8 @@ try {
     assert.equal(
       await page
         .locator(".notice")
-        .evaluate((el) => getComputedStyle(el).borderLeftColor),
-      "rgb(168, 81, 138)",
+        .evaluate((el) => getComputedStyle(el).borderLeftWidth),
+      "1px",
     );
 
     assert.match(
@@ -228,6 +254,14 @@ try {
     await page.locator("#group").selectOption("3 A");
     assert.equal(await page.locator("#objective").inputValue(), "");
     await page.locator("#objective").selectOption("4");
+    const selectionBox = await page.locator(".selection").boundingBox();
+    const readingBox = await page.locator(".content-pane").boundingBox();
+    if (width === 1280) assert.ok(readingBox.x > selectionBox.x + selectionBox.width);
+    else assert.ok(readingBox.y >= selectionBox.y + selectionBox.height);
+    if (process.env.PME_SCREENSHOT_DIR) {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({ path: `${process.env.PME_SCREENSHOT_DIR}/reading-${width}.png` });
+    }
     assert.equal(
       await page
         .getByRole("button", { name: "Preparar contribuição" })
@@ -351,6 +385,12 @@ try {
     assert.equal(await page.locator("iframe").count(), 0);
     const proposal = page.getByLabel("Proposta (obrigatória)");
     await proposal.fill("Texto com acentuação\ne segunda linha.");
+    assert.equal(await page.locator(".bound-form .subject").count(), 1);
+    assert.equal(await page.getByRole("form", { name: "Contribuição", exact: true }).locator("textarea").first().getAttribute("id"), "proposal");
+    if (process.env.PME_SCREENSHOT_DIR) {
+      await page.locator(".contribution-pane").evaluate((el) => el.scrollIntoView());
+      await page.screenshot({ path: `${process.env.PME_SCREENSHOT_DIR}/form-${width}.png` });
+    }
     await page.getByLabel("Problema (opcional)").fill("=Não executar fórmula");
     const form = await page
       .getByRole("form", { name: "Contribuição", exact: true })
@@ -362,6 +402,7 @@ try {
       "Texto com acentuação\ne segunda linha.",
     );
     await page.locator("#group").selectOption("3 B");
+    assert.equal(await page.locator('.steps [aria-current="step"]').count(), 1);
     await page.locator("#objective").selectOption("4");
     const change = page.getByRole("button", {
       name: "Alterar o assunto da contribuição",

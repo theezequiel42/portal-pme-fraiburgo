@@ -65,23 +65,27 @@ export function ContributionForm({ context }) {
       aria-label="Contribuição"
       aria-busy={state === "sending"}
     >
-      <p>
-        O rascunho fica somente nesta página, sem salvamento automático. Não
-        inclua dados pessoais sensíveis. O envio será armazenado no Google
-        Sheets pela instituição; não constitui resposta no Google Forms nem
-        comprova identidade.
+      <p className="form-guidance">
+        O rascunho fica somente nesta página, sem salvamento automático.
+        Não inclua dados pessoais sensíveis.
       </p>
+      <details className="privacy">
+        <summary>Como seu envio é tratado</summary>
+        <p>A contribuição é armazenada em planilha institucional do Google Sheets. O envio só é confirmado após a gravação ser conferida. Não constitui resposta no Google Forms nem comprova identidade.</p>
+      </details>
       <fieldset disabled={state !== "editing"}>
         {[
-          ["problem", "Problema (opcional)", 4000],
-          ["proposal", "Proposta (obrigatória)", 8000],
-          ["justification", "Justificativa (opcional)", 4000],
-        ].map(([name, label, limit]) => (
-          <React.Fragment key={name}>
+          ["proposal", "Proposta (obrigatória)", 8000, "Descreva a ação ou mudança que você propõe para o assunto escolhido."],
+          ["problem", "Problema (opcional)", 4000, "Que dificuldade ou necessidade a proposta procura atender?"],
+          ["justification", "Justificativa (opcional)", 4000, "Explique por que a proposta é importante para a educação no município."],
+        ].map(([name, label, limit, help]) => (
+          <div key={name} className={name === "proposal" ? "proposal-field" : "support-field"}>
             <label htmlFor={name}>{label}</label>
+            <p id={`${name}-help`} className="field-help">{help}</p>
             <textarea
               id={name}
               name={name}
+              aria-describedby={`${name}-help ${name}-limit`}
               required={name === "proposal"}
               maxLength={limit}
               rows={name === "proposal" ? 6 : 3}
@@ -90,8 +94,8 @@ export function ContributionForm({ context }) {
                 setFields({ ...fields, [name]: event.target.value })
               }
             />
-            <small>Até {limit} caracteres.</small>
-          </React.Fragment>
+            <small id={`${name}-limit`}>{fields[name].length} de {limit} caracteres.</small>
+          </div>
         ))}
         <div hidden aria-hidden="true">
           <label htmlFor="website">Website</label>

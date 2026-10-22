@@ -12,8 +12,33 @@ function Legal({ row }) {
     </p>
   );
 }
+function Subject({ context }) {
+  return (
+    <dl className="subject">
+      <div>
+        <dt>Grupo de trabalho</dt>
+        <dd>{context.group}</dd>
+      </div>
+      <div>
+        <dt>Objetivo</dt>
+        <dd>{context.objective}</dd>
+      </div>
+      <div>
+        <dt>Modalidade</dt>
+        <dd>{context.mode}</dd>
+      </div>
+      {context.strategy && (
+        <div>
+          <dt>Estratégia</dt>
+          <dd>{context.strategy.split(":")[0]}</dd>
+        </div>
+      )}
+    </dl>
+  );
+}
 export function App() {
-  const [enabled, setEnabled] = useState(false);
+  const [collection, setCollection] = useState("closed");
+  const enabled = collection === "open";
   const [ready, setReady] = useState(false),
     [group, setGroup] = useState(""),
     [objective, setObjective] = useState(""),
@@ -25,6 +50,7 @@ export function App() {
     trigger = useRef(null);
   useEffect(() => {
     setReady(true);
+    setCollection("checking");
     const controller = new AbortController();
     fetch("/api/collection", {
       signal: controller.signal,
@@ -32,9 +58,14 @@ export function App() {
       credentials: "same-origin",
     })
       .then(async (response) => {
-        if (response.ok) setEnabled((await response.json()).enabled === true);
+        if (!response.ok) throw new Error("Status indisponível");
+        const result = await response.json();
+        if (typeof result.enabled !== "boolean") throw new Error("Status inválido");
+        setCollection(result.enabled ? "open" : "closed");
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!controller.signal.aborted) setCollection("unavailable");
+      });
     return () => controller.abort();
   }, []);
   useEffect(() => {
@@ -75,10 +106,14 @@ export function App() {
         <p className="intro">
           Consulte o PNE para contribuir com o Plano Municipal de Educação.
         </p>
-        <p className="notice">
-          {enabled
-            ? "Formulário disponível. Confira o assunto antes de preparar sua contribuição."
-            : "Coleta ainda não aberta. Consulte o catálogo."}
+        <p className="notice" aria-live="polite">
+          {collection === "checking"
+            ? "Verificando disponibilidade da coleta. A consulta ao catálogo está disponível."
+            : collection === "unavailable"
+              ? "Não foi possível verificar a disponibilidade da coleta. Consulte o catálogo e tente recarregar a página antes de começar a escrever."
+              : enabled
+                ? "Coleta aberta. Consulte o conteúdo e envie sua contribuição."
+                : "Coleta ainda não aberta. Consulte o catálogo."}
         </p>
         {!ready && (
           <p>
@@ -86,8 +121,21 @@ export function App() {
             abaixo; contribuições estão indisponíveis.
           </p>
         )}
+        <ol className="steps" aria-label="Etapas da participação">
+          <li aria-current={!selected && !bound ? "step" : undefined}>
+            Escolha o assunto
+          </li>
+          <li aria-current={selected && !bound ? "step" : undefined}>
+            Consulte o conteúdo
+          </li>
+          <li aria-current={bound ? "step" : undefined}>
+            Escreva sua contribuição
+          </li>
+        </ol>
+        <div className="workspace">
+        <div className="selection">
         <section aria-labelledby="grupo">
-          <h2 id="grupo">1. Escolha sua área</h2>
+          <h2 id="grupo">1. Escolha o assunto</h2>
           <label htmlFor="group">Grupo de trabalho</label>
           <select
             id="group"
@@ -109,8 +157,7 @@ export function App() {
           </select>
         </section>
         {group && (
-          <section aria-labelledby="leitura">
-            <h2 id="leitura">2. Escolha o objetivo e consulte o conteúdo</h2>
+          <section aria-label="Detalhes do assunto">
             <label htmlFor="objective">Objetivo</label>
             <select
               id="objective"
@@ -167,6 +214,17 @@ export function App() {
                     onChange={setStrategy}
                   />
                 )}
+              </>
+            )}
+          </section>
+        )}
+        </div>
+        <section className="content-pane" aria-labelledby="leitura">
+          <h2 id="leitura">2. Consulte o conteúdo</h2>
+          {selected ? (
+            <>
+              <p className="eyebrow">Conteúdo em consulta · {selected.label}</p>
+              <p className="reading-guide">{mode === "Geral" ? "Objetivo e metas na íntegra. Para consultar uma estratégia, altere a modalidade de contribuição." : "Estratégias pertencem ao objetivo, sem associação individual com metas."}</p>
                 <article
                   className="reading"
                   aria-label="Texto legal selecionado"
@@ -174,6 +232,7 @@ export function App() {
                   {mode === "Geral" ? (
                     <>
                       <Legal row={selected} />
+                      <h3>Metas do objetivo</h3>
                       {selected.goals.map((g) => (
                         <Legal key={g.id} row={g} />
                       ))}
@@ -186,27 +245,21 @@ export function App() {
                       .map((s) => <Legal key={s.id} row={s} />)
                   )}
                 </article>
-              </>
-            )}
-          </section>
-        )}
-        {current && (
-          <section aria-labelledby="preparar">
-            <h2 id="preparar">3. Prepare sua contribuição</h2>
-            <p>
-              {current.group} · {current.objective} · {current.mode}
-              {chosen && mode === "Estratégia"
-                ? ` · ${chosen.label}`
-                : ""}.{" "}
-              {enabled
-                ? "Prepare a contribuição para escrever no formulário."
-                : "Consulte o conteúdo enquanto aguarda a abertura."}
-            </p>
-            <p>
-              {enabled
-                ? "Escreva sua contribuição aqui no portal. A gravação na planilha será confirmada pelo servidor."
-                : "O formulário será disponibilizado após as verificações e aprovações institucionais."}
-            </p>
+            </>
+          ) : (
+            <div className="empty-state">
+              <h3>Um assunto de cada vez</h3>
+              <p>Escolha um grupo de trabalho e um objetivo para consultar o texto integral do PNE.</p>
+              <p>Depois da leitura, prepare sua contribuição para o Plano Municipal de Educação.</p>
+            </div>
+          )}
+        </section>
+        <section className="contribution-pane" aria-labelledby="preparar">
+          <h2 id="preparar">3. Escreva sua contribuição</h2>
+          {current && (!bound || !sameContext(bound, current)) && (
+            <div className="prepare">
+            <p>{bound ? "Você está consultando outro assunto. O formulário abaixo mantém o assunto original." : "Confira o assunto antes de começar a escrever."}</p>
+            <Subject context={current} />
             <button
               disabled={!enabled || sameContext(bound, current)}
               onClick={prepare}
@@ -215,24 +268,20 @@ export function App() {
                 ? "Alterar o assunto da contribuição"
                 : "Preparar contribuição"}
             </button>
-          </section>
-        )}
+            {!enabled && <p className="help">A contribuição depende da abertura da coleta.</p>}
+            </div>
+          )}
+          {!current && !bound && <p className="help">Selecione o assunto e consulte o conteúdo para preparar sua contribuição.</p>}
         {bound && (
-          <section aria-labelledby="enviar">
-            <h2 id="enviar">Enviar contribuição</h2>
-            <p>
-              Assunto da contribuição: {bound.group} · {bound.objective} ·{" "}
-              {bound.mode}
-              {bound.strategy && ` · ${bound.strategy.split(":")[0]}`}
-            </p>
-            <p>
-              A navegação de leitura preserva este formulário e seu assunto
-              original. Alterar o assunto exige confirmação e descarta o
-              rascunho atual.
-            </p>
+          <div className="bound-form">
+            <h3>Assunto da contribuição</h3>
+            <Subject context={bound} />
+            <p className="help">Você pode consultar outros conteúdos sem perder este rascunho. Para substituí-lo, escolha outro assunto e confirme a alteração.</p>
             <ContributionForm key={JSON.stringify(bound)} context={bound} />
-          </section>
+          </div>
         )}
+        </section>
+        </div>
         <dialog
           ref={dialog}
           onCancel={(e) => {

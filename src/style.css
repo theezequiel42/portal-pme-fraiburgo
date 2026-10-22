@@ -23,7 +23,7 @@ body {
 header,
 main,
 footer {
-  max-width: 960px;
+  max-width: 1200px;
   margin: auto;
   padding: 24px;
 }
@@ -46,7 +46,7 @@ header .brand img {
   height: auto;
 }
 main {
-  max-width: 860px;
+  max-width: 1200px;
 }
 h1 {
   font-size: 2rem;
@@ -68,7 +68,7 @@ p {
   color: var(--muted);
 }
 .notice {
-  border-left: 4px solid var(--brand);
+  border: 1px solid var(--soft-border);
   background: var(--rose);
   padding: 6px 12px;
 }
@@ -131,12 +131,19 @@ button:disabled {
   cursor: default;
 }
 .reading {
-  border-left: 3px solid var(--brand);
-  padding-left: 20px;
+  border-top: 1px solid var(--soft-border);
+  padding-top: 8px;
   max-width: 74ch;
 }
 .reading p {
   margin: 20px 0;
+}
+.reading p + p {
+  border-top: 1px solid var(--soft-border);
+  padding-top: 20px;
+}
+.reading > p:first-child {
+  font-size: 1.1rem;
 }
 .catalog {
   border-top: 1px solid var(--soft-border);
@@ -212,9 +219,6 @@ dialog button {
   }
   h1 {
     font-size: 1.75rem;
-  }
-  .reading {
-    padding-left: 12px;
   }
   select {
     font-size: 1rem;
@@ -298,7 +302,8 @@ dialog button {
   outline-offset: -2px;
 }
 .strategy-list [aria-selected="true"] {
-  border-left: 4px solid var(--brand);
+  font-weight: 600;
+  background: var(--rose);
 }
 .strategy-status {
   color: var(--muted);
@@ -309,4 +314,90 @@ dialog button {
 .strategy-control .strategy-action:hover:not(:disabled) {
   background: var(--soft-border);
   color: var(--brand-dark);
+}
+
+/* Seleção ao lado da leitura, sem rolagens internas nem cabeçalho fixo. */
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 24px 0;
+  padding: 16px 0;
+  list-style: none;
+  counter-reset: step;
+  border-block: 1px solid var(--soft-border);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.steps li { counter-increment: step; }
+.steps li::before { content: counter(step) ". "; }
+.steps [aria-current="step"] { color: var(--brand-dark); font-weight: 700; }
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 0 40px;
+  align-items: start;
+}
+.workspace > *, .selection section { min-width: 0; }
+.selection {
+  grid-row: span 2;
+  background: var(--rose);
+  padding: 24px;
+}
+.selection section { margin: 0; }
+.selection section + section { margin-top: 20px; }
+.workspace h2 { margin: 0 0 18px; }
+.content-pane, .contribution-pane { margin: 0; }
+.content-pane { min-height: 220px; }
+.contribution-pane {
+  grid-column: 2;
+  border-top: 1px solid var(--soft-border);
+  margin-top: 28px;
+  padding-top: 28px;
+}
+.eyebrow { font-size: 0.9rem; font-weight: 600; color: var(--brand-dark); }
+.reading-guide, .help, .empty-state p { color: var(--muted); font-size: 0.95rem; }
+.empty-state { padding: 12px 0; max-width: 52ch; }
+.empty-state h3 { font-size: 1.25rem; font-weight: 500; }
+.subject {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 14px 24px;
+  padding-block: 16px;
+  border-block: 1px solid var(--soft-border);
+}
+.subject > div:first-child { grid-column: 1 / -1; }
+.subject dt { font-size: 0.85rem; color: var(--muted); }
+.subject dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+.bound-form { margin-top: 24px; }
+.bound-form > h3 { font-size: 1.1rem; }
+.form-guidance { color: var(--muted); font-size: 0.9rem; }
+.privacy { margin: 12px 0 24px; font-size: 0.9rem; }
+.privacy summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+  color: var(--brand-dark);
+}
+.field-help { margin: 0 0 8px; font-size: 0.9rem; color: var(--muted); }
+.proposal-field { margin-bottom: 24px; }
+.proposal-field label { font-size: 1.1rem; }
+form [role="alert"], form [role="status"] {
+  padding: 16px;
+  border: 1px solid var(--border);
+  background: var(--rose);
+}
+form [role="alert"] { border-color: #9b3333; background: #fff5f5; }
+form [role="status"] { border-color: #36704c; background: #f3faf5; }
+@media (max-width: 800px) {
+  .workspace { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .selection { grid-row: auto; padding: 18px; }
+  .contribution-pane { grid-column: 1; margin-top: 0; }
+  .steps { gap: 4px 16px; margin: 16px 0; padding: 10px 0; font-size: 0.8rem; }
+  .empty-state { padding: 0; }
+}
+@media (max-width: 480px) {
+  /* Os títulos das seções já orientam a leitura na coluna única. */
+  .steps { display: none; }
+  .workspace { margin-top: 18px; }
 }
