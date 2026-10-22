@@ -42,7 +42,7 @@ export function createHandler(mode = "demo") {
         "Content-Type": types[file.split(".").pop()],
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy":
-          "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; frame-src https://docs.google.com; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+          "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; frame-src 'none'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
         "Referrer-Policy": "no-referrer",
       });
       res.end(req.method === "HEAD" ? undefined : data);

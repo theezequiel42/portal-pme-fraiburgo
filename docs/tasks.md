@@ -1,5 +1,23 @@
 # Tarefas
 
+## Evolução React + Sheets
+
+- [x] Corrigir armazenamento: uma linha por envio na aba Contribuições, cabeçalho/filtro/congelamento/quebra/banding e recebimento em Brasília.
+- [x] Migrar registros anteriores com comparação exata, preservar abas antigas ocultas e protocolos sem inventar datas.
+- [x] Dedupe atômico por metadado + appendCells; 40 testes integrados e teste real de uma linha/zero abas, inclusive reenvio sem duplicar.
+- [x] Publicar versão de linhas, desativar manutenção temporária e conferir coleta reaberta com rate limit preservado.
+- [x] Substituir iframe por formulário React sem persistência de rascunho.
+- [x] Preservar assunto/rascunho na navegação e pedir confirmação antes de descartar.
+- [x] Consultar disponibilidade na API de mesma origem; manter preview estático fechado.
+- [x] Envio com UUID estável, erro preservando texto e confirmação somente após recibo do servidor.
+- [x] Backend Node/Vercel com validação canônica, API oficial Sheets e credenciais exclusivamente no servidor.
+- [x] Testes automatizados de formulário, API, build, catálogo e navegador desktop/mobile com rede interceptada.
+- [x] Configurar OAuth existente da SME como Secret somente em Production, planilha privada e WAF 10 tentativas/minuto/IP sob autorização específica.
+- [x] Validar uma gravação técnica e releitura exata dos oito campos; promover e conferir produção com coleta aberta.
+- [ ] Instituição manter regras de participação, privacidade/retenção e monitoramento de quota/abuso/validade OAuth.
+
+## Histórico — Forms incorporado (substituído na aplicação atual)
+
 - [x] Interface React responsiva, identidade SME integral e catálogo estático integral.
 - [x] Grupos exatos e adaptador Forms fechado por padrão.
 - [x] Contexto de leitura independente, iframe estável por contexto e confirmação de troca.

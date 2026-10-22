@@ -1,10 +1,6 @@
 // Executar com Playwright instalado e navegador disponível. Nenhum recurso Google é acessado.
 import assert from "node:assert/strict";
-import { build } from "rolldown";
-import { readFile, writeFile } from "node:fs/promises";
-import React from "react";
-import { renderToString } from "react-dom/server";
-import { App } from "../node_modules/.cache/pme-ssr.mjs";
+import { readFile } from "node:fs/promises";
 const catalog = JSON.parse(await readFile("data/pne-catalog.json", "utf8"));
 async function checkSearch(page) {
   const rows = catalog.objectives.find((o) => o.id === 4).strategies;
@@ -167,32 +163,6 @@ try {
     "Playwright indisponível. Instale-o em ambiente autorizado; validação de navegador não executada.",
   );
 }
-const fixture = {
-  enabled: true,
-  approved: true,
-  prefillVerified: true,
-  responderUri:
-    "https://docs.google.com/forms/d/e/FICTITIOUS_TEST_ONLY/viewform",
-  verifiedNativePrefillUri:
-    "https://docs.google.com/forms/d/e/FICTITIOUS_TEST_ONLY/viewform?entry.1=test&entry.2=test&entry.3=Geral&entry.4=test",
-  entries: {
-    group: "entry.1",
-    objective: "entry.2",
-    mode: "entry.3",
-    strategy: "entry.4",
-  },
-};
-await writeFile(
-  "node_modules/.cache/browser-fixture.jsx",
-  `import React from 'react';import {hydrateRoot} from 'react-dom/client';import {App} from '../../src/App.jsx';hydrateRoot(document.getElementById('root'),<App config={${JSON.stringify(fixture)}}/>);`,
-);
-await build({
-  input: "node_modules/.cache/browser-fixture.jsx",
-  output: { file: "node_modules/.cache/browser-fixture.js", format: "esm" },
-  transform: {
-    define: { "process.env.NODE_ENV": JSON.stringify("production") },
-  },
-});
 const browser = await chromium.launch();
 try {
   for (const width of [1280, 375, 320]) {
@@ -345,96 +315,115 @@ try {
     assert.equal(await page.locator("#group").isDisabled(), true);
     await context.close();
   }
-  const page = await browser.newPage();
-  let loads = 0;
-  const fixtureErrors = [];
-  page.on("pageerror", (e) => fixtureErrors.push(String(e)));
-  const demoHtml = await readFile("dist/index.html", "utf8");
-  const fixtureHtml = demoHtml.replace(
-    /<div id="root">[\s\S]*<\/div><script/,
-    () =>
-      '<div id="root">' +
-      renderToString(React.createElement(App, { config: fixture })) +
-      "</div><script",
-  );
-  await page.route("**/*", async (route) => {
-    const u = new URL(route.request().url());
-    if (u.hostname === "docs.google.com") {
-      assert.ok(u.pathname.includes("FICTITIOUS_TEST_ONLY"));
-      loads++;
-      return route.fulfill({
-        contentType: "text/html",
-        body: "<!doctype html><title>Fixture fictícia</title><p>Sem envio real</p>",
-      });
-    }
-    if (u.origin !== "http://127.0.0.1:4173") throw new Error("Rede bloqueada");
-    if (u.pathname === "/")
-      return route.fulfill({ contentType: "text/html", body: fixtureHtml });
-    if (u.pathname === "/app.js")
-      return route.fulfill({
-        contentType: "text/javascript",
-        body: await readFile("node_modules/.cache/browser-fixture.js", "utf8"),
-      });
-    return route.continue();
-  });
-  await page.goto("http://127.0.0.1:4173");
-  await page.locator("#group:enabled").waitFor();
-  await page.locator("#group").selectOption("3 A");
-  await page.locator("#objective").selectOption("4");
-  await page
-    .getByRole("button", { name: "Preparar contribuição", exact: true })
-    .click();
-  await page.locator("iframe").waitFor();
-  await page.waitForFunction(
-    () => document.querySelector("iframe")?.contentWindow !== null,
-  );
-  const original = await page.locator("iframe").elementHandle();
-  const src = await original.getAttribute("src");
-  await page.getByRole("radio", { name: "Estratégia", exact: true }).check();
-  await checkSearch(page);
-  assert.equal(await original.evaluate((el) => el.isConnected), true);
-  assert.equal(await page.locator("iframe").getAttribute("src"), src);
-  await page.locator("#group").selectOption("3 B");
-  assert.equal(await original.evaluate((el) => el.isConnected), true);
-  await page.locator("#objective").selectOption("4");
-  assert.equal(await page.locator("iframe").getAttribute("src"), src);
-  await page
-    .getByRole("button", { name: "Alterar o assunto da contribuição" })
-    .click();
-  await page
-    .getByRole("button", { name: "Cancelar e preservar formulário" })
-    .click();
-  assert.equal(await original.evaluate((el) => el.isConnected), true);
-  assert.equal(await page.locator("iframe").getAttribute("src"), src);
-  await page
-    .getByRole("button", { name: "Alterar o assunto da contribuição" })
-    .click();
-  await page.keyboard.press("Escape");
-  assert.equal(await original.evaluate((el) => el.isConnected), true);
-  assert.equal(
+  for (const width of [1280, 375, 320]) {
+    const page = await browser.newPage({
+      viewport: { width, height: 900 },
+      hasTouch: width < 480,
+    });
+    const errors = [],
+      requests = [];
+    page.on("pageerror", (error) => errors.push(String(error)));
+    await page.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      assert.equal(url.origin, "http://127.0.0.1:4173");
+      if (url.pathname === "/api/collection")
+        return route.fulfill({ json: { enabled: true } });
+      if (url.pathname === "/api/contributions") {
+        const payload = route.request().postDataJSON();
+        requests.push(payload);
+        return route.fulfill({
+          status: requests.length === 1 ? 503 : 200,
+          json:
+            requests.length === 1
+              ? { error: "fixture" }
+              : { status: "recorded", receipt: payload.requestId },
+        });
+      }
+      return route.continue();
+    });
+    await page.goto("http://127.0.0.1:4173");
+    await page.locator("#group:enabled").waitFor();
+    await page.locator("#group").selectOption("3 A");
+    await page.locator("#objective").selectOption("4");
     await page
-      .getByRole("button", {
-        name: "Alterar o assunto da contribuição",
-        exact: true,
-      })
-      .evaluate((el) => el === document.activeElement),
-    true,
-  );
-  await page
-    .getByRole("button", {
+      .getByRole("button", { name: "Preparar contribuição", exact: true })
+      .click();
+    assert.equal(await page.locator("iframe").count(), 0);
+    const proposal = page.getByLabel("Proposta (obrigatória)");
+    await proposal.fill("Texto com acentuação\ne segunda linha.");
+    await page.getByLabel("Problema (opcional)").fill("=Não executar fórmula");
+    const form = await page
+      .getByRole("form", { name: "Contribuição", exact: true })
+      .elementHandle();
+    await page.getByRole("radio", { name: "Estratégia", exact: true }).check();
+    await checkSearch(page);
+    assert.equal(
+      await proposal.inputValue(),
+      "Texto com acentuação\ne segunda linha.",
+    );
+    await page.locator("#group").selectOption("3 B");
+    await page.locator("#objective").selectOption("4");
+    const change = page.getByRole("button", {
       name: "Alterar o assunto da contribuição",
       exact: true,
-    })
-    .click();
-  await page
-    .getByRole("button", { name: "Confirmar alteração do assunto" })
-    .click();
-  assert.equal(await original.evaluate((el) => el.isConnected), false);
-  assert.notEqual(await page.locator("iframe").getAttribute("src"), src);
-  assert.deepEqual(fixtureErrors, []);
-  assert.ok(loads >= 1);
+    });
+    await change.click();
+    await page
+      .getByRole("button", { name: "Cancelar e preservar formulário" })
+      .click();
+    assert.equal(await form.evaluate((el) => el.isConnected), true);
+    await change.click();
+    await page.keyboard.press("Escape");
+    assert.equal(
+      await change.evaluate((el) => el === document.activeElement),
+      true,
+    );
+    await page
+      .getByRole("button", { name: "Enviar contribuição", exact: true })
+      .click();
+    await page.getByRole("alert").waitFor();
+    assert.equal(
+      await proposal.inputValue(),
+      "Texto com acentuação\ne segunda linha.",
+    );
+    assert.equal(await proposal.isDisabled(), true);
+    assert.match(requests[0].context.group, /^3 A/);
+    assert.equal(requests[0].context.mode, "Geral");
+    await page
+      .getByRole("button", { name: "Tentar confirmar novamente" })
+      .click();
+    await page.getByText(/Contribuição gravada e conferida/).waitFor();
+    assert.deepEqual(requests[0], requests[1]);
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Enviar contribuição", exact: true })
+        .count(),
+      0,
+    );
+    await page
+      .getByRole("button", {
+        name: "Nova contribuição neste assunto",
+        exact: true,
+      })
+      .click();
+    assert.equal(await proposal.inputValue(), "");
+    assert.equal(await proposal.isDisabled(), false);
+    await change.click();
+    await page
+      .getByRole("button", { name: "Confirmar alteração do assunto" })
+      .click();
+    assert.equal(await form.evaluate((el) => el.isConnected), false);
+    assert.equal(await proposal.inputValue(), "");
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    );
+    assert.deepEqual(errors, []);
+    await page.close();
+  }
   console.log(
-    "Fluxo, mobile, fallback e fixture interceptada passaram. Nenhuma resposta enviada.",
+    "Fluxo, mobile, fallback e formulário React com falha/reenvio/recibo interceptados passaram. Nenhum envio Google real.",
   );
 } finally {
   await browser.close();

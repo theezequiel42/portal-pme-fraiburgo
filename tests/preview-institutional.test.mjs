@@ -70,7 +70,7 @@ test("preview institucional isolado: raiz fixa, allowlist, métodos e headers", 
       );
       assert.match(
         res.headers["Content-Security-Policy"],
-        /connect-src 'none'/,
+        /connect-src 'self'/,
       );
       assert.equal((await request(institutional, url, "HEAD")).body, undefined);
       for (const method of ["POST", "PUT", "DELETE", "OPTIONS"])

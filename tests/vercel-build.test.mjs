@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
   mkdtemp,
-  open,
   cp,
   mkdir,
   writeFile,
@@ -10,11 +10,20 @@ import {
   rm,
   symlink,
   readdir,
+  chmod,
+  stat,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const repo = new URL("../", import.meta.url);
+const assets = [
+  "app.js",
+  "brand",
+  "brand/sme-fraiburgo.png",
+  "index.html",
+  "style.css",
+];
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "pme-vercel-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -33,174 +42,123 @@ async function fixture(t) {
   );
   return root;
 }
-
-test("Vercel non-production always builds closed demo ignoring env and local config", async (t) => {
-  const { runBuild } = await import("../scripts/vercel-build.mjs");
-  const root = await fixture(t);
-  await mkdir(join(root, "institutional"));
-  const sentinel = "PRIVATE_SYNTHETIC_SENTINEL";
-  await writeFile(join(root, "institutional/forms.json"), sentinel);
-  for (const mode of ["preview", "development", undefined]) {
-    await runBuild({
-      root,
-      env: { VERCEL_ENV: mode, PME_FORMS_CONFIG: "INVALID_IGNORED" },
-    });
-    assert.equal(
-      await readFile(join(root, "institutional/forms.json"), "utf8"),
-      sentinel,
-    );
-    assert.match(
-      await readFile(join(root, "dist/index.html"), "utf8"),
-      /Coleta ainda não aberta/,
-    );
-    assert.doesNotMatch(
-      await readFile(join(root, "dist/app.js"), "utf8"),
-      /PRIVATE_SYNTHETIC_SENTINEL|TEST_FIXTURE/,
-    );
-    assert.doesNotMatch(
-      await readFile(join(root, "dist/index.html"), "utf8"),
-      /<iframe/,
-    );
-  }
-});
-
-test("Vercel production rejects missing, malformed or unapproved config without exposing values", async (t) => {
-  const { runBuild } = await import("../scripts/vercel-build.mjs");
-  const root = await fixture(t);
-  for (const value of [
-    undefined,
-    "PRIVATE_SYNTHETIC_INVALID",
-    "null",
-    "{}",
-    JSON.stringify({ enabled: true }),
-  ]) {
-    await assert.rejects(
-      runBuild({
-        root,
-        env: { VERCEL_ENV: "production", PME_FORMS_CONFIG: value },
-      }),
-      /PME_FORMS_CONFIG inválida/,
-    );
-  }
-  await assert.rejects(readFile(join(root, "institutional/forms.json")), {
-    code: "ENOENT",
-  });
-  await assert.rejects(readFile(join(root, "dist/index.html")), {
-    code: "ENOENT",
-  });
-});
-
-// Deliberately synthetic: never copy institutional links or entry IDs here.
-const synthetic = {
-  enabled: true,
-  approved: true,
-  prefillVerified: true,
-  responderUri: "https://docs.google.com/forms/d/e/TEST_FIXTURE/viewform",
-  verifiedNativePrefillUri:
-    "https://docs.google.com/forms/d/e/TEST_FIXTURE/viewform?entry.1=A&entry.2=B&entry.3=C&entry.4=D",
-  entries: {
-    group: "entry.1",
-    objective: "entry.2",
-    mode: "entry.3",
-    strategy: "entry.4",
-  },
-};
-const production = {
-  VERCEL_ENV: "production",
-  PME_FORMS_CONFIG: JSON.stringify(synthetic),
-};
-
-test("Vercel production builds institutional fixture and publishes only public assets", async (t) => {
-  const { runBuild } = await import("../scripts/vercel-build.mjs");
-  const root = await fixture(t);
-  await mkdir(join(root, "institutional"));
-  await writeFile(
-    join(root, "institutional/private.txt"),
-    "PRIVATE_SYNTHETIC_SENTINEL",
-  );
-  await runBuild({ root, env: production });
-  assert.match(
-    await readFile(join(root, "dist/app.js"), "utf8"),
-    /TEST_FIXTURE/,
-  );
+async function assertClosed(root, output = "dist") {
+  const html = await readFile(join(root, output, "index.html"), "utf8");
+  const js = await readFile(join(root, output, "app.js"), "utf8");
+  assert.match(html, /Coleta ainda não aberta/);
+  assert.doesNotMatch(html, /<iframe/);
   assert.doesNotMatch(
-    await readFile(join(root, "dist/index.html"), "utf8"),
-    /Coleta ainda não aberta/,
+    html + js,
+    /PRIVATE_SYNTHETIC|TEST_FIXTURE|synthetic-private-key/,
   );
   assert.deepEqual(
-    (await readdir(join(root, "dist"), { recursive: true })).sort(),
-    ["app.js", "brand", "brand/sme-fraiburgo.png", "index.html", "style.css"],
+    (await readdir(join(root, output), { recursive: true })).sort(),
+    assets,
   );
-  assert.equal(
-    await readFile(join(root, "institutional/private.txt"), "utf8"),
-    "PRIVATE_SYNTHETIC_SENTINEL",
-  );
-  await assert.rejects(readFile(join(root, "institutional/forms.json")), {
-    code: "ENOENT",
-  });
-});
+}
 
-test("Vercel production removes temporary config even when closing its handle rejects", async (t) => {
+test("all Vercel environments build closed assets ignoring legacy config and backend secrets", async (t) => {
   const { runBuild } = await import("../scripts/vercel-build.mjs");
   const root = await fixture(t);
-  const probe = await open(join(root, "probe"), "w");
-  const prototype = Object.getPrototypeOf(probe);
-  const write = prototype.writeFile;
-  await probe.close();
-  const failure = new Error("Synthetic close failure");
-  t.mock.method(prototype, "writeFile", async function (...args) {
-    const close = this.close;
-    t.mock.method(this, "close", async function () {
-      await close.call(this);
-      throw failure;
+  await mkdir(join(root, "institutional"));
+  const privatePath = join(root, "institutional/forms.json");
+  await writeFile(privatePath, "PRIVATE_SYNTHETIC_SENTINEL", { mode: 0o000 });
+  const before = await stat(privatePath);
+  for (const mode of ["production", "preview", "development", undefined]) {
+    await runBuild({
+      root,
+      env: {
+        VERCEL_ENV: mode,
+        PME_FORMS_CONFIG: "PRIVATE_SYNTHETIC_INVALID",
+        COLLECTION_ENABLED: "true",
+        COLLECTION_ORIGIN: "https://PRIVATE_SYNTHETIC.example",
+        GOOGLE_SERVICE_ACCOUNT_EMAIL: "PRIVATE_SYNTHETIC@example.invalid",
+        GOOGLE_PRIVATE_KEY: "synthetic-private-key",
+        GOOGLE_SHEETS_ID: "PRIVATE_SYNTHETIC_SHEET",
+      },
     });
-    return write.apply(this, args);
-  });
-
-  await assert.rejects(runBuild({ root, env: production }), (error) => {
-    assert.equal(error, failure);
-    return true;
-  });
-  await assert.rejects(readFile(join(root, "institutional/forms.json")), {
-    code: "ENOENT",
-  });
+    await assertClosed(root);
+  }
+  const after = await stat(privatePath);
+  assert.equal(after.atimeMs, before.atimeMs);
+  assert.equal(after.mtimeMs, before.mtimeMs);
+  assert.deepEqual(await readdir(join(root, "institutional")), ["forms.json"]);
+  await chmod(privatePath, 0o600);
+  assert.equal(
+    await readFile(privatePath, "utf8"),
+    "PRIVATE_SYNTHETIC_SENTINEL",
+  );
 });
 
-test("Vercel production removes temporary config when the institutional build fails", async (t) => {
+test("production needs no build-time config and creates no institutional directory", async (t) => {
+  const { runBuild } = await import("../scripts/vercel-build.mjs");
+  const root = await fixture(t);
+  await runBuild({
+    root,
+    env: { VERCEL_ENV: "production", PME_FORMS_CONFIG: undefined },
+  });
+  await assertClosed(root);
+  await assert.rejects(stat(join(root, "institutional")), { code: "ENOENT" });
+});
+
+test("Vercel propagates build failure without creating a private configuration", async (t) => {
   const { runBuild } = await import("../scripts/vercel-build.mjs");
   const root = await fixture(t);
   await writeFile(join(root, "scripts/build.mjs"), "process.exit(23);\n");
-
-  await assert.rejects(runBuild({ root, env: production }), (error) => {
-    assert.equal(error.status, 23);
-    return true;
-  });
-  await assert.rejects(readFile(join(root, "institutional/forms.json")), {
-    code: "ENOENT",
-  });
-  await assert.rejects(readFile(join(root, "dist/index.html")), {
-    code: "ENOENT",
-  });
+  await assert.rejects(
+    runBuild({ root, env: { VERCEL_ENV: "production" } }),
+    (error) => {
+      assert.equal(error.status, 23);
+      return true;
+    },
+  );
+  await assert.rejects(stat(join(root, "institutional")), { code: "ENOENT" });
+  await assert.rejects(stat(join(root, "dist")), { code: "ENOENT" });
 });
 
-test("Vercel production refuses existing config without reading or overwriting it", async (t) => {
-  const { runBuild } = await import("../scripts/vercel-build.mjs");
+test("institutional and default builds never read or modify private config and never pass App config", async (t) => {
   const root = await fixture(t);
   await mkdir(join(root, "institutional"));
+  const config = join(root, "institutional/forms.json");
+  await writeFile(config, "PRIVATE_SYNTHETIC_SENTINEL", { mode: 0o000 });
+  const before = await stat(config);
+  // This fixture enforces the new App interface and catches build-time props.
   await writeFile(
-    join(root, "institutional/forms.json"),
-    "PRIVATE_SYNTHETIC_SENTINEL",
-    { mode: 0o000 },
+    join(root, "src/App.jsx"),
+    `import React from 'react'; export function App(props) { if (Object.hasOwn(props, 'config')) throw new Error('App no longer accepts config'); return <p>Coleta ainda não aberta</p>; }`,
   );
-  t.after(() =>
-    import("node:fs/promises")
-      .then(({ chmod }) => chmod(join(root, "institutional/forms.json"), 0o600))
-      .catch(() => {}),
+  await writeFile(
+    join(root, "src/client.jsx"),
+    `import React from 'react'; import {hydrateRoot} from 'react-dom/client'; import {App} from './App.jsx'; hydrateRoot(document.getElementById('root'), <App/>);`,
   );
-  await assert.rejects(
-    runBuild({ root, env: production }),
-    /Configuração institucional existente/,
+  await writeFile(
+    join(root, "src/forms.js"),
+    "export const demoConfig = {}; export const validateConfig = () => true; throw new Error('Legacy config module must not be imported');",
   );
+  for (const args of [
+    ["scripts/build.mjs"],
+    ["scripts/build.mjs", "--institutional"],
+  ]) {
+    execFileSync(process.execPath, args, { cwd: root, stdio: "pipe" });
+    await assertClosed(
+      root,
+      args.length === 1 ? "dist" : "institutional/build",
+    );
+  }
+  const after = await stat(config);
+  assert.equal(after.mtimeMs, before.mtimeMs);
+  assert.equal(after.atimeMs, before.atimeMs);
+  await chmod(config, 0o600);
+  assert.equal(await readFile(config, "utf8"), "PRIVATE_SYNTHETIC_SENTINEL");
+  assert.deepEqual((await readdir(join(root, "institutional"))).sort(), [
+    "build",
+    "forms.json",
+  ]);
+  for (const file of assets.filter((file) => file !== "brand"))
+    assert.deepEqual(
+      await readFile(join(root, "dist", file)),
+      await readFile(join(root, "institutional/build", file)),
+    );
 });
 
 test("Vercel static settings preserve preview security headers and required build sources", async () => {

@@ -2,8 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
 import { renderToString } from "react-dom/server";
-import { App } from "../node_modules/.cache/pme-ssr.mjs";
-test("árvore inicial consistente: nenhum grupo, etapas dependentes ausentes e fallback disponível", () => {
+import { build } from "rolldown";
+test("árvore inicial consistente: nenhum grupo, etapas dependentes ausentes e fallback disponível", async () => {
+  // Build fixtures share node_modules, so never import their mutable SSR cache.
+  await build({
+    input: "src/App.jsx",
+    external: (id) => /^react(?:-dom)?(?:\/|$)/.test(id),
+    output: { file: "node_modules/.cache/components-test.mjs", format: "esm" },
+  });
+  const { App } = await import("../node_modules/.cache/components-test.mjs");
   const html = renderToString(React.createElement(App));
   assert.match(html, /Selecione uma área/);
   assert.match(html, /<select id="group" disabled=""/);

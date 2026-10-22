@@ -1,6 +1,44 @@
 # Validação executada
 
-## Preview institucional — 20/10/2026
+## Limpeza autorizada para início oficial
+
+O usuário solicitou remover os testes feitos pelo Hermes e por ele. Inspeção encontrou quatro registros de teste: os protocolos técnicos conhecidos, o teste anterior do usuário já migrado e uma nova proposta literalmente `teste`. Não houve exclusão por busca genérica de palavra em contribuições reais. Uma regra WAF temporária bloqueou POST durante a limpeza; foram excluídas quatro linhas inteiras da tabela, de baixo para cima, e duas abas antigas de teste. Backup privado pré-operação e recibo ficam em `institutional/`, ignorados pelo Git e fora do build; não foram alterados OAuth nem código do backend.
+
+Releitura exata confirmou zero contribuições, cabeçalho com nove colunas preservado, filtro/congelamento/banding mantidos e ausência das duas abas removidas. Metadados contendo apenas protocolos foram preservados como bloqueio contra recriação dos testes por navegadores antigos; isso não bloqueia novos UUIDs. Orientações atualizadas e relidas. Manutenção desativada/publicada e relida como inativa; nenhuma nova contribuição de teste foi criada para essa limpeza. As evidências anteriores abaixo são históricas e não significam que os registros de teste continuam na planilha.
+
+## Migração para tabela legível — publicada e conferida
+
+A pedido do usuário, a planilha passou a ter aba principal `Contribuições`, com nove cabeçalhos legíveis, uma linha por registro, filtro, cabeçalho congelado/destacado, larguras de colunas, quebra automática, alinhamento superior e linhas alternadas. Locale pt_BR e fuso America/Sao_Paulo. Os dois registros existentes foram copiados e comparados campo a campo; protocolos preservados. Não havia data no formato antigo: foi indicado `Não registrada (formato anterior)`, sem inventar recebimento.
+
+As duas abas individuais anteriores foram ocultadas, não apagadas; releitura confirmou que permanecem intactas. Backup e referências reais ficam em `institutional/`, ignorados e fora do build. Metadados únicos dos protocolos migrados foram criados e relidos. Durante a mudança, regra WAF temporária bloqueou POST para impedir gravações no formato antigo. Após promover o novo deployment, essa manutenção foi desativada e relida como inativa; o rate limit original de 10 tentativas/60 s/IP continua ativo. Coleta reaberta.
+
+Build e suíte integrada: 40/40 testes aprovados, incluindo duas requisições concorrentes com mesmo UUID sem duplicidade, UUIDs diferentes na mesma aba, colisão de metadataId fechada, perda de resposta com releitura e schema/cabeçalhos. Catálogo legal/SHA-256 preservados. Deployment conferido READY, com ambas as Functions, e endereço canônico apontando para a versão de linhas.
+
+O usuário autorizou explicitamente mais um teste técnico. POST real no endereço canônico retornou 200 e protocolo; releitura independente comparou todos os campos, acentos/quebras e texto iniciado por `=`, e confirmou timestamp de Brasília. A tabela passou de dois para três registros, sem criar nenhuma aba; todos os anteriores permaneceram exatamente iguais. Reenvio do mesmo UUID retornou o mesmo recibo e uma nova leitura confirmou apenas uma linha desse protocolo e nenhuma aba adicional. Testes técnicos continuam marcados para exclusão da sistematização, não foram apagados.
+
+Formatação foi conferida pela API: cabeçalho destacado, congelamento, filtro, banding, larguras e WRAP. `autoResizeDimensions` em ROWS limpa altura fixa para ajuste dinâmico conforme documentação oficial. A primeira asserção operacional que esperava pixelSize maior que 21 na API falhou; foi corrigida porque o retorno pode continuar indicando o padrão 21px antes da renderização de um cliente. Não confundir essa metainformação com captura visual do Sheets autenticado, que não foi realizada. Nenhum conteúdo de participante foi impresso nos testes; snapshots privados permanecem fora do Git/dist.
+
+## Histórico — ativação original OAuth Google e Sheets (abas individuais)
+
+O usuário autorizou configurar backend/Sheets, publicar no projeto Vercel vinculado e abrir a coleta, escolhendo reutilizar a conta Google já autorizada no Hermes. Conta SME conferida ao vivo; autorização OAuth renovada e escopo Sheets verificado sem alterar os arquivos de credenciais locais. Criada planilha dedicada, relida e conferida como privada, sem permissão pública/de domínio. Referências reais de planilha, deploy, regra WAF e protocolo técnico ficam exclusivamente em `institutional/collection.json`, fora do Git e do dist.
+
+Credenciais OAuth cadastradas como Secrets somente em Production; listagem posterior confirmou nomes, tipo e ambiente. O build não lê nem incorpora esses valores. Nenhum segredo foi impresso ou copiado para fontes públicas. OAuth reutilizado possui escopos mais amplos que Sheets: isso foi explicitado e não foi alegada redução de escopo. Expiração/revogação pode afetar o portal e a autorização compartilhada com Hermes.
+
+Adaptação OAuth testada em vermelho/verde; suíte completa com 33/33 aprovados, build e comparação das 464 linhas/hash aprovados. Deployment Node 22 concluído READY com duas Functions. Antes da promoção, um POST técnico identificado como TESTE TÉCNICO — DESCONSIDERAR recebeu HTTP 200 e protocolo. Leitura independente pela API Sheets comparou literalmente os oito campos, incluindo acentos, quebras e texto iniciado por `=`. Preservar esse teste para auditoria e excluí-lo da sistematização, não apagá-lo automaticamente. Nenhuma contribuição adicional foi enviada na inspeção de interface.
+
+Após promover, o endereço canônico retornou HTTP 200 no HTML/JS e `{ "enabled": true }` na API. `/.git/config`, `/institutional/forms.json`, `/sources/numbered-rows.json`, `/.env`, `/server/contributions.mjs` e `/data/pne-catalog.json` retornaram 404. CSP de mesma origem conferida. Navegador real em produção 1280/375/320px: formulário disponível sem iframe, rascunho e foco preservados ao navegar/cancelar com Escape, sem overflow nem erros JS. Capturas locais em cache privado `pme-tmp/production-form-{1280,375,320}.png`; nenhum POST nesse teste de interface.
+
+WAF publicado e relido ativo/válido: POST `/api/contributions`, 10 tentativas/60 s por IP, janela fixa e ação 429. A configuração foi verificada; não foi feito teste de carga para esgotar a regra. Não autentica participantes, não garante disponibilidade sob ataque distribuído e pode limitar usuários de um IP escolar compartilhado. Capacidade operacional de 500 abas de contribuição; sem consolidação automática. O deploy foi feito pelo CLI a partir do estado de trabalho, sem commit/push. O preview local continua estático e fechado; abrir produção não altera o preview.
+
+## Evolução atual — formulário React e backend Sheets
+
+Verificação final como `fraiburgo`, Node 22.23.1: `npm test` com 28/28 aprovados, `npm run build`, `npm run test:browser`, catálogo e Prettier aprovados; `git diff --check` sem erros. HTTP real em loopback: `/` e `/app.js` 200; `/.git/config`, `/institutional/forms.json`, `/sources/numbered-rows.json` e `/.env` 404. Catálogo, fonte numerada e lockfile sem alterações. Preview atual serve exclusivamente `dist/` fechado.
+
+O iframe foi substituído por campos React (problema opcional, proposta obrigatória e justificativa opcional). O navegador consulta a disponibilidade na API de mesma origem; o preview estático continua fechado. Testes de navegador em 1280/375/320px passaram com transporte interceptado: rascunho e assunto preservados ao navegar, cancelamento/Escape com retorno de foco, falha de envio sem recibo, repetição com UUID/conteúdo idênticos, confirmação e novo formulário. A suíte mantém busca/seleção acessíveis, teclado/toque, catálogo sem JS/falha de módulo e ausência de overflow.
+
+TDD do formulário SSR: falhou pela entrada ausente antes da implementação e passou depois. A ação de nova contribuição no mesmo assunto também foi testada em vermelho (botão ausente) e verde. Build e verificação dos 464 rótulos/textos/posições e SHA-256 passaram. As evidências históricas abaixo de Forms não validam Sheets; nenhum envio real ao Google, abertura de coleta, criação de planilha ou deploy foi realizado nesta evolução. A configuração institucional antiga não foi lida nem modificada. Detalhes e limites do backend estão em `sheets-backend.md`.
+
+## Histórico — preview institucional Forms — 20/10/2026
 
 O usuário autorizou explicitamente ativação/publicação do formulário, verificação nativa e uma contribuição técnica. Hermes verificou a conta proprietária, removeu indicação de rascunho e publicou o formulário com isPublished=true e isAcceptingResponses=true, relendo o alvo exato após as alterações. Acesso público somente à view published de respondentes; editor e respostas não compartilhados. Não há planilha vinculada, somente Forms. O site não foi implantado na internet; o DEMO continua fechado.
 

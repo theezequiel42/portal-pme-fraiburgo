@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { StrategyCombobox } from "./StrategyCombobox.jsx";
 import catalog from "../data/pne-catalog.json";
 import { groups, contextFor, sameContext } from "./domain.js";
-import { demoConfig, validateConfig, formUrl } from "./forms.js";
+import { ContributionForm } from "./ContributionForm.jsx";
 function Legal({ row }) {
   return (
     <p data-legal={row.label}>
@@ -12,7 +12,8 @@ function Legal({ row }) {
     </p>
   );
 }
-export function App({ config = demoConfig }) {
+export function App() {
+  const [enabled, setEnabled] = useState(false);
   const [ready, setReady] = useState(false),
     [group, setGroup] = useState(""),
     [objective, setObjective] = useState(""),
@@ -22,14 +23,27 @@ export function App({ config = demoConfig }) {
     [pending, setPending] = useState(null);
   const dialog = useRef(null),
     trigger = useRef(null);
-  useEffect(() => setReady(true), []);
+  useEffect(() => {
+    setReady(true);
+    const controller = new AbortController();
+    fetch("/api/collection", {
+      signal: controller.signal,
+      cache: "no-store",
+      credentials: "same-origin",
+    })
+      .then(async (response) => {
+        if (response.ok) setEnabled((await response.json()).enabled === true);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
   useEffect(() => {
     if (pending) dialog.current?.showModal();
   }, [pending]);
   const selected = catalog.objectives.find((o) => o.id === Number(objective));
   const chosen = selected?.strategies.find((s) => s.id === strategy);
   const current = contextFor(catalog, group, objective, mode, strategy);
-  const enabled = validateConfig(config);
+
   function prepare(e) {
     trigger.current = e.currentTarget;
     if (bound && !sameContext(bound, current)) setPending(current);
@@ -190,7 +204,7 @@ export function App({ config = demoConfig }) {
             </p>
             <p>
               {enabled
-                ? "O formulário é um serviço do Google. O assunto pré-preenchido é editável e não comprova identidade ou vínculo. Envio e recibo são apresentados pelo próprio Google."
+                ? "Escreva sua contribuição aqui no portal. A gravação na planilha será confirmada pelo servidor."
                 : "O formulário será disponibilizado após as verificações e aprovações institucionais."}
             </p>
             <button
@@ -212,16 +226,11 @@ export function App({ config = demoConfig }) {
               {bound.strategy && ` · ${bound.strategy.split(":")[0]}`}
             </p>
             <p>
-              A navegação de leitura preserva este formulário. Não há salvamento
-              de rascunho pelo portal. Os campos e o recibo pertencem ao Google;
-              não há garantia de anonimato.
+              A navegação de leitura preserva este formulário e seu assunto
+              original. Alterar o assunto exige confirmação e descarta o
+              rascunho atual.
             </p>
-            <iframe
-              key={JSON.stringify(bound)}
-              src={formUrl(config, bound)}
-              title="Google Forms — Enviar contribuição"
-              referrerPolicy="no-referrer"
-            />
+            <ContributionForm key={JSON.stringify(bound)} context={bound} />
           </section>
         )}
         <dialog
@@ -240,8 +249,9 @@ export function App({ config = demoConfig }) {
             </p>
           )}
           <p>
-            O texto preenchido no Google pode ser perdido ao substituir o
-            formulário. O portal não pode ler ou salvar esses campos.
+            O texto deste formulário será descartado ao alterar o assunto. Não
+            há salvamento automático. Se houver envio sem confirmação, tente
+            confirmar novamente antes de iniciar outro pedido.
           </p>
           <button autoFocus onClick={() => close(false)}>
             Cancelar e preservar formulário
@@ -286,7 +296,7 @@ export function App({ config = demoConfig }) {
         Município de Fraiburgo · Secretaria Municipal de Educação
         <br />
         {enabled
-          ? "Envio e recibo sob responsabilidade do Google Forms."
+          ? "Contribuições registradas em planilha institucional do Google Sheets."
           : "Consulta demonstrativa. Nenhuma contribuição é coletada nesta versão."}
       </footer>
     </>
