@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-export function ContributionForm({ context }) {
+export function ContributionForm({ context, onStatusChange }) {
   const [fields, setFields] = useState({
     problem: "",
     proposal: "",
@@ -12,6 +12,12 @@ export function ContributionForm({ context }) {
   const attempt = useRef(null);
   const locked = useRef(false);
   const message = useRef(null);
+  useEffect(() => {
+    onStatusChange?.({
+      dirty: state !== "recorded" && Object.values(fields).some(Boolean),
+      sending: state === "sending",
+    });
+  }, [fields, state, onStatusChange]);
   useEffect(() => {
     if (["error", "recorded"].includes(state)) message.current?.focus();
   }, [state]);

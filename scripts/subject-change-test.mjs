@@ -1,0 +1,78 @@
+import assert from "node:assert/strict";
+import { chromium } from "playwright";
+const browser = await chromium.launch();
+try {
+  for (const width of [1280, 375, 320]) {
+  const page = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: width < 480 });
+  const requests = [];
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route("**/api/collection", r => r.fulfill({ json: { enabled: true } }));
+  await page.route("**/api/contributions", async route => {
+    const payload = route.request().postDataJSON();
+    requests.push(payload);
+    await gate;
+    await route.fulfill({ json: { status: "recorded", receipt: payload.requestId } });
+  });
+  await page.goto("http://127.0.0.1:4173");
+  await page.locator("#group:enabled").waitFor();
+  await page.locator("#group").selectOption("3 A");
+  await page.locator("#objective").selectOption("4");
+  await page.getByRole("button", { name: "Preparar contribuição", exact: true }).click();
+  await page.locator("#objective").selectOption("17");
+  assert.match(await page.locator(".bound-form .subject").innerText(), /Objetivo 17/);
+  assert.equal(await page.getByRole("button", { name: "Alterar o assunto da contribuição", exact: true }).count(), 0);
+  const proposal = page.getByLabel("Proposta (obrigatória)");
+  await proposal.fill("Rascunho preservado");
+  await page.locator("#group").selectOption("3 B");
+  await page.getByRole("dialog").waitFor();
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator("#group").inputValue(), "3 A");
+  assert.equal(await proposal.inputValue(), "Rascunho preservado");
+  assert.equal(await page.locator("#group").evaluate(el => el === document.activeElement), true);
+  await page.locator("#objective").selectOption("4");
+  await page.getByRole("button", { name: "Cancelar e preservar formulário" }).click();
+  assert.equal(await page.locator("#objective").inputValue(), "17");
+  await page.getByRole("radio", { name: "Estratégia", exact: true }).click();
+  await page.getByRole("button", { name: "Confirmar alteração do assunto" }).click();
+  assert.equal(await proposal.count(), 0);
+  const strategy = page.getByRole("combobox", { name: "Estratégia", exact: true });
+  await strategy.press("ArrowDown");
+  await strategy.press("Enter");
+  await page.getByRole("button", { name: "Preparar contribuição", exact: true }).click();
+  await proposal.fill("Outra proposta");
+  await strategy.press("ArrowDown");
+  await strategy.press("ArrowDown");
+  await strategy.press("Enter");
+  await page.getByRole("dialog").waitFor();
+  await page.keyboard.press("Escape");
+  assert.equal(await proposal.inputValue(), "Outra proposta");
+  assert.equal(await strategy.evaluate(el => el === document.activeElement), true);
+  await strategy.press("ArrowDown");
+  await strategy.press("ArrowDown");
+  await strategy.press("Enter");
+  await page.getByRole("button", { name: "Confirmar alteração do assunto" }).click();
+  assert.equal(await proposal.inputValue(), "");
+  await proposal.fill("Proposta para o novo assunto");
+  await page.getByRole("button", { name: "Enviar contribuição", exact: true }).click();
+  await page.locator("#group:disabled").waitFor();
+  assert.equal(await page.locator("#group").isDisabled(), true);
+  assert.equal(await page.locator("#objective").isDisabled(), true);
+  const subject = await page.locator(".bound-form .subject").innerText();
+  await strategy.press("ArrowDown");
+  await strategy.press("ArrowDown");
+  await strategy.press("Enter");
+  assert.equal(await page.getByRole("dialog").isVisible(), false);
+  assert.equal(await page.locator(".bound-form .subject").innerText(), subject);
+  release();
+  await page.getByText(/Contribuição gravada e conferida/).waitFor();
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].context.objective, "Objetivo 17");
+  assert.equal(requests[0].context.mode, "Estratégia");
+  assert.ok(subject.includes(requests[0].context.strategy.split(":")[0]));
+  await page.close();
+  }
+  console.log("Seletores sincronizados; confirmação, cancelamento, Escape e troca de estratégia passaram.");
+} finally {
+  await browser.close();
+}

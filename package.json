@@ -10,7 +10,7 @@
     "build": "node scripts/build.mjs",
     "test": "node --experimental-test-isolation=none --test tests/*.test.mjs",
     "preview": "node scripts/preview.mjs",
-    "test:browser": "node scripts/browser-test.mjs",
+    "test:browser": "node scripts/browser-test.mjs && node scripts/subject-change-test.mjs",
     "verify:catalog": "node scripts/verify-catalog.mjs",
     "build:institutional": "node scripts/build.mjs --institutional",
     "preview:institutional": "node scripts/preview.mjs --institutional"

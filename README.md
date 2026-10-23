@@ -26,7 +26,7 @@ A evolução antes registrada como ideia foi explicitamente aprovada: formulári
 
 ReactDOMServer gera o catálogo integral e um estado inicial fechado; hydrateRoot usa a mesma árvore inicial. `App` não recebe configuração de coleta. Após hidratar, o cliente consulta `GET /api/collection`; apenas o status habilitado em tempo de execução permite preparar o formulário. `POST /api/contributions` passa pelo backend, que valida contexto e campos e grava no Sheets. A confirmação depende da resposta da API após gravação, não de carregamento de página. Falha de status mantém a coleta fechada; falha de envio não deve apagar o texto.
 
-A navegação de leitura é separada do assunto da contribuição. Trocar grupo/objetivo/modalidade não descarta o rascunho em memória; substituir seu assunto exige confirmação. Não há persistência local, analytics nem credenciais no frontend. Estratégias pertencem ao objetivo, não a uma meta inferida.
+Os seletores controlam tanto a leitura quanto o assunto da contribuição. Depois de preparar o formulário, trocar grupo/objetivo/modalidade/estratégia atualiza diretamente um formulário vazio; com texto preenchido, a troca exige confirmação antes de descartar o rascunho. Cancelar ou Escape preserva seletores, assunto e texto. Não há botão separado para alterar o assunto. Durante o envio, a troca não é aplicada; após falha incerta, permanece o aviso para tentar confirmar o pedido original antes de descartá-lo. Não há persistência local, analytics nem credenciais no frontend. Estratégias pertencem ao objetivo, não a uma meta inferida.
 
 ## Executar e verificar
 

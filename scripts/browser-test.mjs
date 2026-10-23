@@ -395,28 +395,22 @@ try {
     const form = await page
       .getByRole("form", { name: "Contribuição", exact: true })
       .elementHandle();
-    await page.getByRole("radio", { name: "Estratégia", exact: true }).check();
-    await checkSearch(page);
+    await page.getByRole("radio", { name: "Estratégia", exact: true }).click();
+    await page.getByRole("button", { name: "Cancelar e preservar formulário" }).click();
     assert.equal(
       await proposal.inputValue(),
       "Texto com acentuação\ne segunda linha.",
     );
     await page.locator("#group").selectOption("3 B");
     assert.equal(await page.locator('.steps [aria-current="step"]').count(), 1);
-    await page.locator("#objective").selectOption("4");
-    const change = page.getByRole("button", {
-      name: "Alterar o assunto da contribuição",
-      exact: true,
-    });
-    await change.click();
     await page
       .getByRole("button", { name: "Cancelar e preservar formulário" })
       .click();
     assert.equal(await form.evaluate((el) => el.isConnected), true);
-    await change.click();
+    await page.locator("#group").selectOption("3 B");
     await page.keyboard.press("Escape");
     assert.equal(
-      await change.evaluate((el) => el === document.activeElement),
+      await page.locator("#group").evaluate((el) => el === document.activeElement),
       true,
     );
     await page
@@ -449,10 +443,8 @@ try {
       .click();
     assert.equal(await proposal.inputValue(), "");
     assert.equal(await proposal.isDisabled(), false);
-    await change.click();
-    await page
-      .getByRole("button", { name: "Confirmar alteração do assunto" })
-      .click();
+    await page.locator("#objective").selectOption("17");
+    assert.equal(await page.getByRole("dialog").isVisible(), false);
     assert.equal(await form.evaluate((el) => el.isConnected), false);
     assert.equal(await proposal.inputValue(), "");
     assert.ok(

@@ -46,6 +46,7 @@ export function App() {
     [strategy, setStrategy] = useState("");
   const [bound, setBound] = useState(null),
     [pending, setPending] = useState(null);
+  const [formStatus, setFormStatus] = useState({ dirty: false, sending: false });
   const dialog = useRef(null),
     trigger = useRef(null);
   useEffect(() => {
@@ -77,11 +78,26 @@ export function App() {
 
   function prepare(e) {
     trigger.current = e.currentTarget;
-    if (bound && !sameContext(bound, current)) setPending(current);
-    else if (!bound) setBound(current);
+    if (!bound) setBound(current);
+  }
+  function applySelection(next) {
+    setGroup(next.group);
+    setObjective(next.objective);
+    setMode(next.mode);
+    setStrategy(next.strategy);
+    if (bound) {
+      setBound(contextFor(catalog, next.group, next.objective, next.mode, next.strategy));
+      setFormStatus({ dirty: false, sending: false });
+    }
+  }
+  function changeSelection(next, source = document.activeElement) {
+    if (formStatus.sending) return;
+    trigger.current = source;
+    if (bound && formStatus.dirty) setPending(next);
+    else applySelection(next);
   }
   function close(confirm) {
-    if (confirm) setBound(pending);
+    if (confirm) applySelection(pending);
     dialog.current.close();
     setPending(null);
     trigger.current?.focus();
@@ -139,13 +155,10 @@ export function App() {
           <label htmlFor="group">Grupo de trabalho</label>
           <select
             id="group"
-            disabled={!ready}
+            disabled={!ready || formStatus.sending}
             value={group}
             onChange={(e) => {
-              setGroup(e.target.value);
-              setObjective("");
-              setMode("Geral");
-              setStrategy("");
+              changeSelection({ group: e.target.value, objective: "", mode: "Geral", strategy: "" }, e.currentTarget);
             }}
           >
             <option value="">Selecione uma área</option>
@@ -162,10 +175,9 @@ export function App() {
             <select
               id="objective"
               value={objective}
+              disabled={formStatus.sending}
               onChange={(e) => {
-                setObjective(e.target.value);
-                setMode("Geral");
-                setStrategy("");
+                changeSelection({ group, objective: e.target.value, mode: "Geral", strategy: "" }, e.currentTarget);
               }}
             >
               <option value="">Selecione um objetivo</option>
@@ -181,7 +193,7 @@ export function App() {
             </select>
             {selected && (
               <>
-                <fieldset>
+                <fieldset disabled={formStatus.sending}>
                   <legend>Modalidade de contribuição</legend>
                   {["Geral", "Estratégia"].map((m) => (
                     <label className="radio" key={m}>
@@ -192,9 +204,8 @@ export function App() {
                         name="mode"
                         value={m}
                         checked={mode === m}
-                        onChange={() => {
-                          setMode(m);
-                          setStrategy("");
+                        onChange={(e) => {
+                          changeSelection({ group, objective, mode: m, strategy: "" }, e.currentTarget);
                         }}
                       />
                       <span>{m}</span>
@@ -211,7 +222,7 @@ export function App() {
                     key={`${group}-${objective}`}
                     strategies={selected.strategies}
                     value={strategy}
-                    onChange={setStrategy}
+                    onChange={(value) => changeSelection({ group, objective, mode, strategy: value })}
                   />
                 )}
               </>
@@ -256,17 +267,15 @@ export function App() {
         </section>
         <section className="contribution-pane" aria-labelledby="preparar">
           <h2 id="preparar">3. Escreva sua contribuição</h2>
-          {current && (!bound || !sameContext(bound, current)) && (
+          {current && !bound && (
             <div className="prepare">
-            <p>{bound ? "Você está consultando outro assunto. O formulário abaixo mantém o assunto original." : "Confira o assunto antes de começar a escrever."}</p>
+            <p>Confira o assunto antes de começar a escrever.</p>
             <Subject context={current} />
             <button
               disabled={!enabled || sameContext(bound, current)}
               onClick={prepare}
             >
-              {bound
-                ? "Alterar o assunto da contribuição"
-                : "Preparar contribuição"}
+              Preparar contribuição
             </button>
             {!enabled && <p className="help">A contribuição depende da abertura da coleta.</p>}
             </div>
@@ -276,8 +285,8 @@ export function App() {
           <div className="bound-form">
             <h3>Assunto da contribuição</h3>
             <Subject context={bound} />
-            <p className="help">Você pode consultar outros conteúdos sem perder este rascunho. Para substituí-lo, escolha outro assunto e confirme a alteração.</p>
-            <ContributionForm key={JSON.stringify(bound)} context={bound} />
+            <p className="help">Os seletores alteram o assunto deste formulário. Se houver texto preenchido, pediremos confirmação antes de descartá-lo.</p>
+            <ContributionForm key={JSON.stringify(bound)} context={bound} onStatusChange={setFormStatus} />
           </div>
         )}
         </section>
@@ -293,8 +302,7 @@ export function App() {
           <h2 id="confirm-title">Alterar o assunto da contribuição?</h2>
           {pending && (
             <p>
-              {pending.group} · {pending.objective} · {pending.mode}
-              {pending.strategy && ` · ${pending.strategy.split(":")[0]}`}
+              A mudança será aplicada aos seletores e ao formulário. Complete a seleção do novo assunto, se necessário.
             </p>
           )}
           <p>
